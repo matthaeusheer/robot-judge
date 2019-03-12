@@ -1,6 +1,7 @@
 import os
 from glob import glob
 import random
+import pandas as pd
 
 from common import DATA_DIR_PATH
 RANDOM_SEED = 42
@@ -41,3 +42,6 @@ class ProblemSet1Io:
         year = case_title.split('_')[0]
         assert len(year) == 4, 'Year must be 4 digits long.'
         return int(year)
+
+    def get_predict_targets(self, label_list, file_name='case_reversed.csv'):
+        target_df = pd.read_csv(os.path.join(DATA_DIR_PATH, self.data_dir, file_name))

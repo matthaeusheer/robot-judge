@@ -8,7 +8,7 @@ def remove_punct_and_sym(doc):
 
 
 def remove_ws_tokens(doc):
-    tokens = [tok.text for tok in doc if tok.pos_ != '_SP']
+    tokens = [tok.text for tok in doc if not tok.is_space]
     return nlp.make_doc(' '.join(tokens))
 
 
@@ -19,4 +19,9 @@ def lemmatize(doc):
 
 def remove_stopwords(doc):
     tokens = [tok.text for tok in doc if str(tok) not in stop_words]
+    return nlp.make_doc(' '.join(tokens))
+
+
+def to_lower(doc):
+    tokens = [token.text.lower() for token in doc]
     return nlp.make_doc(' '.join(tokens))
