@@ -15,3 +15,12 @@ def sort_coo_matrix(m):
     return sorted(tuples, key=lambda x: x[2])[::-1]
 
 
+def flatten_list_of_lists(list_of_lists):
+    """Takes a list of lists and returns one list which holds all elements of all lists."""
+    return [item for sublist in list_of_lists for item in sublist]
+
+
+def get_most_n_most_common_counter_entries(counter_object, n_most_common):
+    """The Counter most_common() method returns tuples of entries and counts. This method takes a counter and
+    returns the n_most_common elements of this counter."""
+    return [item[0] for item in counter_object.most_common()[:n_most_common]]
