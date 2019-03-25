@@ -1,4 +1,4 @@
-from robot_judge.nlp.language_models import spacy_nlp as nlp
+from robot_judge.nlp.language_models import spacy_nlp_en as nlp
 from robot_judge.nlp.language_models import stop_words
 
 """

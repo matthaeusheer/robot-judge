@@ -1,23 +1,71 @@
+import os
 from collections import Counter
 import pandas as pd
 import matplotlib.pyplot as plt
+import pickle
 
-from robot_judge.nlp import count_sents
-from robot_judge.nlp import count_tokens
-from robot_judge.nlp import spacy_doc
+from robot_judge.nlp.language_models import spacy_nlp_en
+from robot_judge.nlp.spacy import count_sents
+from robot_judge.nlp.spacy import count_tokens
 import robot_judge.nlp.filter as filters
 from robot_judge.utils.numerics import round_up
 from robot_judge.utils.data_structs import normalize_counter
 
 from typing import Callable
 
+from common import DATA_DIR_PATH
 
-def count_words_sents_letters(corpus_dict):
+
+def process_corpus_dict_to_doc_dict(corpus_dict, n_threads=4, batch_size=10, store=False):
+    """Takes in a corpus dict (labelled texts) and runs spaCy on it.
+
+    Returns
+    -------
+    doc_dict: Dictionary with same structure as corpus_dict but the values are now spacy docs instead of texts.
+    """
+    labels = list(corpus_dict.keys())
+    doc_dict = {}
+
+    idx = 0
+    n_batches = len(labels) / batch_size
+    for doc in spacy_nlp_en.pipe(corpus_dict.values(), n_threads=n_threads, batch_size=batch_size):
+        doc_dict[labels[idx]] = doc
+        idx += 1
+
+        if idx % batch_size == 0:
+            print('Finished {} of {} batches.'.format(idx / batch_size, n_batches))
+
+    if store:
+        store_doc_dict(doc_dict)
+
+    return doc_dict
+
+
+def store_doc_dict(doc_dict, data_dir=DATA_DIR_PATH, file_name='doc_dict.pkl'):
+    """Pickles a doc dict to file."""
+    with open(os.path.join(data_dir, file_name), 'wb') as out_file:
+        pickle.dump(doc_dict, out_file)
+        print('Stored doc dict to {}'.format(os.path.join(data_dir, file_name)))
+
+
+def load_doc_dict(data_dir=DATA_DIR_PATH, file_name='doc_dict.pkl'):
+    """Loads a pickled doc dict from file."""
+    try:
+        with open(os.path.join(data_dir, file_name), 'rb')as in_file:
+            print('Loading doc dict {}'.format(os.path.join(data_dir, file_name)))
+            return pickle.load(in_file)
+    except OSError as e:
+        print(e)
+        print('There is no file {}. You have to process first and create this file.'.format(os.path.join(data_dir,
+                                                                                                         file_name)))
+
+
+def count_words_sents_letters(doc_dict):
     """Calculates the number of words, sents and letters for each entry in corpus_dict.
 
     Arguments
     ---------
-    corpus_dict: Dictionary of label-(raw)text key-value pairs.
+    doc_dict: Dictionary of label - spacy_doc key-value pairs.
 
     Returns
     -------
@@ -27,29 +75,28 @@ def count_words_sents_letters(corpus_dict):
     letters_counts: List of sentence counts for the associated keys in the titles list.
 
     """
+    labels = []
     word_counts = []
     sents_counts = []
     letters_counts = []
 
-    labels = []
-
-    for label, case_text in corpus_dict.items():
+    for label, doc in doc_dict.items():
 
         labels.append(label)
-        # For the sentence counting I basically take the raw unprocessed text and use spacy sentence detection.
-        sents_counts.append(count_sents(spacy_doc(case_text)))
 
-        # For word and letter count I apply some basic preprocessing like removing white spaces and punctuations.
-        doc = filters.remove_punct_and_sym(spacy_doc(case_text))
-        doc = filters.remove_ws_tokens(doc)
-
-        word_counts.append(count_tokens(doc))
+        # For the letters/sentence counting I basically take the raw unprocessed text and use spacy sentence detection.
+        sents_counts.append(count_sents(doc))
         letters_counts.append(len(doc.text))
+
+        # For word and letter count I apply some basic pre-processing like removing white spaces and punctuations.
+        tok_filtered = [tok for tok in doc if not filters.token_is_punct_space(tok)]
+        word_counts.append(count_tokens(tok_filtered))
 
     return labels, word_counts, sents_counts, letters_counts
 
 
 def visualize_counts(years, word_counts, sents_counts, letters_counts):
+    """Plots word_counts, sents_counts and letters_counts vs years."""
 
     df_dict = {'year': years, 'sents_count': sents_counts, 'words_count': word_counts, 'letters_count': letters_counts}
     counts_df = pd.DataFrame(df_dict)
@@ -57,9 +104,9 @@ def visualize_counts(years, word_counts, sents_counts, letters_counts):
     counts_df = counts_df.groupby(['year']).mean()  # Average counts per year
 
     axes = counts_df.plot(subplots=True, figsize=(13, 8), sharex=True, linewidth=2, legend=False)
-    axes[0].set_ylabel('Mean number of letters')
-    axes[1].set_ylabel('Mean number of sentences')
-    axes[2].set_ylabel('Mean number of words')
+    axes[0].set_ylabel('Mean number of sentences')
+    axes[1].set_ylabel('Mean number of words')
+    axes[2].set_ylabel('Mean number of letters')
 
     for i, ax in enumerate(axes):
         if i in [0, 1]:
@@ -72,13 +119,13 @@ def visualize_counts(years, word_counts, sents_counts, letters_counts):
     plt.show()
 
 
-def get_pos_tags(corpus_dict, transform_label: Callable=None):
-    """Calculates the number of words, sents and letters for each entry in corpus_dict.
+def get_pos_tags(doc_dict, transform_label: Callable=None):
+    """For all entries in the corpus_dict, extract pos tags for all tokens in the texts.
 
     Arguments
     ---------
-    corpus_dict: Dictionary of label-(raw)text key-value pairs.
-    transform_label: Function to transform the labels from the corpus dict (e.g. extract year from label).
+    doc_dict: Dictionary of label - spacy_doc key-value pairs.
+    transform_label: Callable function to transform the labels from the corpus dict (e.g. extract year from label).
 
     Returns
     -------
@@ -89,18 +136,21 @@ def get_pos_tags(corpus_dict, transform_label: Callable=None):
     labels = []
     pos_tags = []
 
-    for label, text in corpus_dict.items():
+    for label, doc in doc_dict.items():
         if transform_label:
             label = transform_label(label)
         labels.append(label)
 
-        pos_tags_ = [token.pos_ for token in spacy_doc(text)]
+        pos_tags_ = [token.pos_ for token in doc]
         pos_tags.append(pos_tags_)
 
     return labels, pos_tags
 
 
 def aggregate_avg_pos_tags(years, pos_tags):
+    """Use all pos tags lists (which have to correspond to the years list),
+    to calculate the average counts of pos tags per year.
+    """
 
     sorted_set_years = sorted(set(years))
     avg_year_counters = []
@@ -124,6 +174,7 @@ def aggregate_avg_pos_tags(years, pos_tags):
 
 
 def visualize_avg_pos_vs_year(pos_df):
+    """Plot avg pos tag counter vs years."""
     _ = plt.figure()
 
     ax = pos_df.plot(figsize=(15, 8), legend=False)

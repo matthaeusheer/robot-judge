@@ -24,10 +24,11 @@ class ProblemSet1Io:
         assert len(cases_file_names) != 0, 'Something went wrong. Did you place the data correctly into data dir?'
         return cases_file_names
 
-    def read_multiple_cases_files(self, n_samples=-1):
+    def read_multiple_cases_files(self, n_samples=-1, random_seed=None):
+        """Samples a number of n_samples case files from the data folder."""
         cases_file_paths = self.get_cases_file_paths
         if n_samples != -1:
-            random.seed(RANDOM_SEED)
+            random.seed(random_seed if random_seed else RANDOM_SEED)
             cases_file_paths = random.sample(cases_file_paths, n_samples)
 
         cases_dict = {}
@@ -43,5 +44,19 @@ class ProblemSet1Io:
         assert len(year) == 4, 'Year must be 4 digits long.'
         return int(year)
 
-    def get_predict_targets(self, label_list, file_name='case_reversed.csv'):
-        target_df = pd.read_csv(os.path.join(DATA_DIR_PATH, self.data_dir, file_name))
+    def get_target_values_df(self, file_name='case_reversed.csv'):
+        """Loads the bare target values into a data frame."""
+        return pd.read_csv(os.path.join(DATA_DIR_PATH, self.data_dir, file_name), index_col='caseid')
+
+    def get_target_values(self, target_labels, file_name='case_reversed.csv'):
+        """For a given list of target labels, return the corresponding target values. The target_labels list
+        would hold case labels while the target_values list holds the case reversed / not reversed integer."""
+
+        target_df = pd.read_csv(os.path.join(DATA_DIR_PATH, self.data_dir, file_name), index_col='caseid')
+        all_case_targets = target_df.to_dict()['case_reversed']
+
+        target_values = []
+        for label in target_labels:
+            target_values.append(all_case_targets[label])
+
+        return target_values

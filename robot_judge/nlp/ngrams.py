@@ -3,39 +3,32 @@ import itertools
 from collections import Counter
 import pandas as pd
 
-from robot_judge.nlp.language_models import spacy_nlp
-from robot_judge.utils.data_structs import flatten_list_of_lists, get_most_n_most_common_counter_entries
-
-import robot_judge.nlp.filter  as filters
-
 from gensim.models.phrases import Phrases
 
-from common import DATA_DIR_PATH
+from robot_judge.utils.data_structs import flatten, get_most_n_most_common_counter_entries
+import robot_judge.nlp.filter as filters
 
 
-def aggregate_clean_sentences(corpus_dict):
-    """From a corpus dict (label-raw_text key value pairs), construct a list of sentences.
+def aggregate_clean_sentences(doc_dict):
+    """From a corpus dict (label-raw_text key value pairs), construct a list of sentences (list of list of words).
 
     Returns
     -------
-    sentences: A list of lists, where each inner list is a sentence split into words.
+    sentences: A list of lists, where each inner list is a sentence split into words, i.e. a list of words.
     """
 
     sentences = {}
-    for key, text in corpus_dict.items():
+    for key, doc in doc_dict.items():
         sentences[key] = []
-        for sentence in spacy_nlp(text).sents:
+        for sentence in doc.sents:
             sentences[key].append([token.lower_ for token in sentence if
                                    not filters.token_is_punct_space(token)
                                    and not filters.token_is_stopword(token)])
     return sentences
 
 
-def get_sents_from_sentence_dict(sentence_dict):
-    return [sent for sent in sentence_dict.values()][0]
-
-
 def train_phrase_model(sentences, min_count=5):
+    """Given a list of sentences, train a gensim phrase model."""
 
     phrase_model = Phrases(sentences, min_count=min_count)
 
@@ -43,6 +36,7 @@ def train_phrase_model(sentences, min_count=5):
 
 
 def print_label_sent_dict(label_sent_dict):
+    """For debugging. Takes a dictionary of (case) labels and sentences and prints out to console."""
 
     for label, sentences in label_sent_dict.items():
         print('Trigram sentences for case: ', label)
@@ -53,10 +47,15 @@ def print_label_sent_dict(label_sent_dict):
 
 
 def create_df_from_label_sent_dict(label_sent_dict):
+    """Takes a dictionary of label keys and sentence values and creates a BoW pandas data frame.
+
+    For each (case) label, the count of all words is being accumulated and
+    then a pandas data frame is being constructed.
+    """
 
     counter_dict = {}
-    for label, tri_sents in label_sent_dict.items():
-        all_words = itertools.chain(*tri_sents)
+    for label, sentences in label_sent_dict.items():
+        all_words = itertools.chain(*sentences)
         counter = Counter(all_words)
         counter_dict[label] = counter
 
@@ -65,10 +64,17 @@ def create_df_from_label_sent_dict(label_sent_dict):
     return feat_df
 
 
+def get_sents_from_sentence_dict(sentence_dict):
+    """List over all cases in sentence dict where each sublist holds lists of words (sentences)."""
+    return [sent for sent in sentence_dict.values()]
+
+
 def get_most_common_words(label_sent_dict, n_most_common=1000):
+    """Having a label - sentences dictionary, get the n_most_common words seen over all sentences of all cases."""
 
     sentences = get_sents_from_sentence_dict(label_sent_dict)
-    words = flatten_list_of_lists(sentences)
+
+    words = list(flatten(sentences))
 
     word_counter = Counter(words)
 
@@ -76,16 +82,25 @@ def get_most_common_words(label_sent_dict, n_most_common=1000):
 
 
 def get_labels_without_year(df):
+    """The Labels of cases do have a _<year> - appendix in the name. This method truncates this appendix away."""
     return list([label.split('_')[1] for label in df.index])
 
 
-def get_target_values(target_labels, data_dir='assignment_1', file_name='case_reversed.csv'):
+def filter_words(trigram_sentence_dict):
+    """This function extracts the words which are being used as features in the classification.
 
-    target_df = pd.read_csv(os.path.join(DATA_DIR_PATH, data_dir, file_name), index_col='caseid')
-    all_case_targets = target_df.to_dict()['case_reversed']
+    Step 1: Take all the bi- and tri-gram words (words which hold one or two underline characters).
+    Step 2: Fill up the feature space which usual words which are the most common ones over the whole corpus.
 
-    target_values = []
-    for label in target_labels:
-        target_values.append(all_case_targets[label])
+    """
+    all_words = list(flatten(trigram_sentence_dict.values()))
+    bi_tri_words = list(set([word for word in all_words if word.count('_') in [1, 2]]))
 
-    return target_values
+    most_common_words = get_most_common_words(trigram_sentence_dict, 1000)
+
+    filtered_words = bi_tri_words
+    for word in most_common_words:
+        if word not in bi_tri_words:
+            filtered_words.append(word)
+
+    return filtered_words

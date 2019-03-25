@@ -1,4 +1,4 @@
-from collections import Counter
+from collections import Counter, Iterable
 
 
 def normalize_counter(counter: Counter) -> Counter:
@@ -18,6 +18,15 @@ def sort_coo_matrix(m):
 def flatten_list_of_lists(list_of_lists):
     """Takes a list of lists and returns one list which holds all elements of all lists."""
     return [item for sublist in list_of_lists for item in sublist]
+
+
+def flatten(l):
+    """Generator function to flatten multi-dimensional python lists."""
+    for el in l:
+        if isinstance(el, Iterable) and not isinstance(el, (str, bytes)):
+            yield from flatten(el)
+        else:
+            yield el
 
 
 def get_most_n_most_common_counter_entries(counter_object, n_most_common):
