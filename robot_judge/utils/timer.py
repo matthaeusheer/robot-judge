@@ -48,3 +48,24 @@ class Stopwatch(object):
     def __exit__(self, type, value, traceback):
         """Stop timing."""
         self.stop()
+
+
+def timeit(method):
+    def timed(*args, **kw):
+        ts = time.time()
+        result = method(*args, **kw)
+        te = time.time()
+
+        ms = (te - ts) * 1000
+
+        if 'time_sec' in kw:
+            print('Method %r finished in %2.2f sec.' % (method.__name__, ms / 1000))
+        elif 'time_min' in kw:
+            print('Method %r finished in %2.2f min.' % (method.__name__, ms / 1000 / 60))
+        elif 'time_hour' in kw:
+            print('Method %r finished in %2.2f hour.' % (method.__name__, ms / 1000 / 60 / 60))
+        else:
+            print('Method %r finished in %2.2f ms.' % (method.__name__, ms))
+
+        return result
+    return timed

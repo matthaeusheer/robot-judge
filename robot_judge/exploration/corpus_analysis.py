@@ -2,7 +2,7 @@ import os
 from collections import Counter
 import pandas as pd
 import matplotlib.pyplot as plt
-import pickle
+import dill as pickle
 
 from robot_judge.nlp.language_models import spacy_nlp_en
 from robot_judge.nlp.spacy import count_sents
@@ -10,13 +10,16 @@ from robot_judge.nlp.spacy import count_tokens
 import robot_judge.nlp.filter as filters
 from robot_judge.utils.numerics import round_up
 from robot_judge.utils.data_structs import normalize_counter
+from robot_judge.utils.timer import timeit
+from robot_judge import io
 
 from typing import Callable
 
 from common import DATA_DIR_PATH
 
 
-def process_corpus_dict_to_doc_dict(corpus_dict, n_threads=4, batch_size=10, store=False):
+@timeit
+def process_corpus_dict_to_doc_dict(corpus_dict, n_threads=4, batch_size=10, store=False, data_sub_dir=None):
     """Takes in a corpus dict (labelled texts) and runs spaCy on it.
 
     Returns
@@ -24,19 +27,26 @@ def process_corpus_dict_to_doc_dict(corpus_dict, n_threads=4, batch_size=10, sto
     doc_dict: Dictionary with same structure as corpus_dict but the values are now spacy docs instead of texts.
     """
     labels = list(corpus_dict.keys())
+    n_batches = len(labels) / batch_size
+
     doc_dict = {}
 
     idx = 0
-    n_batches = len(labels) / batch_size
     for doc in spacy_nlp_en.pipe(corpus_dict.values(), n_threads=n_threads, batch_size=batch_size):
         doc_dict[labels[idx]] = doc
         idx += 1
 
         if idx % batch_size == 0:
-            print('Finished {} of {} batches.'.format(idx / batch_size, n_batches))
+            batch_idx = idx / batch_size
+            print('Finished {} of {} batches.'.format(batch_idx, n_batches))
 
-    if store:
-        store_doc_dict(doc_dict)
+            if store:
+                assert data_sub_dir is not None, 'Need to specify data sub directory if store = True.'
+                io.create_folder_if_not_exists(os.path.join(DATA_DIR_PATH, data_sub_dir))
+
+                store_doc_dict(doc_dict, data_dir=os.path.join(DATA_DIR_PATH, data_sub_dir),
+                               file_name='doc_dict_batch_{}.pkl'.format(batch_idx))
+                doc_dict = {}
 
     return doc_dict
 
@@ -48,6 +58,7 @@ def store_doc_dict(doc_dict, data_dir=DATA_DIR_PATH, file_name='doc_dict.pkl'):
         print('Stored doc dict to {}'.format(os.path.join(data_dir, file_name)))
 
 
+@timeit
 def load_doc_dict(data_dir=DATA_DIR_PATH, file_name='doc_dict.pkl'):
     """Loads a pickled doc dict from file."""
     try:

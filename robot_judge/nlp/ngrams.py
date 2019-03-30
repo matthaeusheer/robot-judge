@@ -86,7 +86,7 @@ def get_labels_without_year(df):
     return list([label.split('_')[1] for label in df.index])
 
 
-def filter_words(trigram_sentence_dict):
+def filter_words(trigram_sentence_dict, n_most_common=1000):
     """This function extracts the words which are being used as features in the classification.
 
     Step 1: Take all the bi- and tri-gram words (words which hold one or two underline characters).
@@ -96,11 +96,15 @@ def filter_words(trigram_sentence_dict):
     all_words = list(flatten(trigram_sentence_dict.values()))
     bi_tri_words = list(set([word for word in all_words if word.count('_') in [1, 2]]))
 
-    most_common_words = get_most_common_words(trigram_sentence_dict, 1000)
+    most_common_bi_tri_words = get_most_n_most_common_counter_entries(Counter(bi_tri_words), n_most_common)
 
-    filtered_words = bi_tri_words
-    for word in most_common_words:
-        if word not in bi_tri_words:
-            filtered_words.append(word)
+    if len(most_common_bi_tri_words) == n_most_common:
+        return most_common_bi_tri_words[:n_most_common]
+    else:
+        most_common_words_all = get_most_common_words(trigram_sentence_dict, n_most_common)
 
-    return filtered_words
+        for word in most_common_words_all:
+            if word not in most_common_bi_tri_words:
+                most_common_bi_tri_words.append(word)
+
+    return most_common_bi_tri_words

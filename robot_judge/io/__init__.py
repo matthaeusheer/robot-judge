@@ -13,6 +13,11 @@ def read_file(file_name):
         return ' '.join(infile.readlines())
 
 
+def create_folder_if_not_exists(path):
+    if not os.path.exists(path):
+        os.mkdir(path)
+
+
 class ProblemSet1Io:
     """Data loading functionality for problem set 1."""
     def __init__(self, data_dir='assignment_1'):
