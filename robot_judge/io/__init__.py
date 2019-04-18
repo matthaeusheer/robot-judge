@@ -18,10 +18,11 @@ def create_folder_if_not_exists(path):
         os.mkdir(path)
 
 
-class ProblemSet1Io:
+class DataLoader:
     """Data loading functionality for problem set 1."""
-    def __init__(self, data_dir='assignment_1'):
+    def __init__(self, data_dir='assignment_data', metadata_file='case_metadata.csv'):
         self.data_dir = data_dir
+        self.metadata_file = metadata_file
 
     @property
     def get_cases_file_paths(self):
@@ -49,16 +50,16 @@ class ProblemSet1Io:
         assert len(year) == 4, 'Year must be 4 digits long.'
         return int(year)
 
-    def get_target_values_df(self, file_name='case_reversed.csv'):
+    def get_target_values_df(self):
         """Loads the bare target values into a data frame."""
-        return pd.read_csv(os.path.join(DATA_DIR_PATH, self.data_dir, file_name), index_col='caseid')
+        return pd.read_csv(os.path.join(DATA_DIR_PATH, self.data_dir, self.metadata_file), index_col='caseid')
 
-    def get_target_values(self, target_labels, file_name='case_reversed.csv'):
+    def get_target_values(self, target_labels, target):
         """For a given list of target labels, return the corresponding target values. The target_labels list
         would hold case labels while the target_values list holds the case reversed / not reversed integer."""
 
-        target_df = pd.read_csv(os.path.join(DATA_DIR_PATH, self.data_dir, file_name), index_col='caseid')
-        all_case_targets = target_df.to_dict()['case_reversed']
+        target_df = pd.read_csv(os.path.join(DATA_DIR_PATH, self.data_dir, self.metadata_file), index_col='caseid')
+        all_case_targets = target_df.to_dict()[target]
 
         target_values = []
         for label in target_labels:

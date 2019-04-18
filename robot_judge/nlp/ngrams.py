@@ -3,7 +3,7 @@ import itertools
 from collections import Counter
 import pandas as pd
 
-from gensim.models.phrases import Phrases
+from gensim.models.phrases import Phrases, Phraser
 
 from robot_judge.utils.data_structs import flatten, get_most_n_most_common_counter_entries
 import robot_judge.nlp.filter as filters
@@ -108,3 +108,27 @@ def filter_words(trigram_sentence_dict, n_most_common=1000):
                 most_common_bi_tri_words.append(word)
 
     return most_common_bi_tri_words
+
+
+def create_xgram_sentences(sentences, sentence_dict, min_count=2):
+    """Create bi-, tri- or whatever x-gram sentences from a corpus of labelled texts.
+
+    Arguments
+    ---------
+        sentences: list (of dimension number of sentences in all texts) of
+                   lists of sentences (dimension varying depending on number of words per sentence)
+                   where a sentence is represented as a list of words
+        sentence_dict: a dictionary where keys are the label of the text (e.g. case string id) and values are
+                       list of sentences (same structure as sentences above) for this text only
+    """
+    bigram_model = Phraser(train_phrase_model(sentences, min_count=min_count))
+
+    xgram_sentences = []
+    for sentence in sentences:
+        xgram_sentences.append(bigram_model[sentence])
+
+    xgram_sentence_dict = {}
+    for label, sentences in sentence_dict.items():
+        xgram_sentence_dict[label] = list(bigram_model[sentences])
+
+    return xgram_sentences, xgram_sentence_dict

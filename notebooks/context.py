@@ -2,10 +2,10 @@ import os
 import sys
 
 """
-This file basically makes sure that we can import ml_project and its subpackages correctly from notebooks
+This file basically makes sure that we can import robot_judge and its subpackages correctly from notebooks
 which are stored in the notebooks directory as
 
-    from context import ml_project
+    from context import robot_judge
     
 From this point on we can import anything from ml_project as we wish.
 """

@@ -122,6 +122,7 @@ dmypy.json
 ### Data folder
 data/*
 !data/data_readme.txt
+!data/models/*
 
 ### Pycharm
 .idea/

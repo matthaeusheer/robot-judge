@@ -4,10 +4,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import dill as pickle
 
+from robot_judge.nlp import robo_spacy
 from robot_judge.nlp.language_models import spacy_nlp_en
-from robot_judge.nlp.spacy import count_sents
-from robot_judge.nlp.spacy import count_tokens
-import robot_judge.nlp.filter as filters
+from robot_judge.nlp.filter import token_is_punct_space
 from robot_judge.utils.numerics import round_up
 from robot_judge.utils.data_structs import normalize_counter
 from robot_judge.utils.timer import timeit
@@ -96,12 +95,12 @@ def count_words_sents_letters(doc_dict):
         labels.append(label)
 
         # For the letters/sentence counting I basically take the raw unprocessed text and use spacy sentence detection.
-        sents_counts.append(count_sents(doc))
+        sents_counts.append(robo_spacy.count_sents(doc))
         letters_counts.append(len(doc.text))
 
         # For word and letter count I apply some basic pre-processing like removing white spaces and punctuations.
-        tok_filtered = [tok for tok in doc if not filters.token_is_punct_space(tok)]
-        word_counts.append(count_tokens(tok_filtered))
+        tok_filtered = [tok for tok in doc if not token_is_punct_space(tok)]
+        word_counts.append(robo_spacy.count_tokens(tok_filtered))
 
     return labels, word_counts, sents_counts, letters_counts
 
